@@ -218,6 +218,118 @@
       justify-content: center;
       font-weight: bold;
       font-size: 1em;
+ h1 {
+    text-align: center;
+    font-size: 2.5em;
+    margin-top: 20px;
+    color: #333;
+  }
+
+  /* Estilos del contenedor del foro */
+  #foro {
+    width: 80%;
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Estilos de los formularios */
+  #registro, #login {
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  input[type="email"], input[type="password"], input[type="text"], textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1em;
+  }
+
+  input[type="email"]:focus, input[type="password"]:focus, input[type="text"]:focus, textarea:focus {
+    border-color: #007BFF;
+    outline: none;
+  }
+
+  button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007BFF;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.2em;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background-color: #0056b3;
+  }
+
+  button:disabled {
+    background-color: #ccc;
+  }
+
+  /* Estilos para los mensajes del foro */
+  #mensajes {
+    margin-top: 30px;
+  }
+
+  .mensaje {
+    background-color: #f9f9f9;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .mensaje strong {
+    color: #007BFF;
+    font-size: 1.1em;
+  }
+
+  .mensaje small {
+    display: block;
+    margin-top: 5px;
+    color: #777;
+    font-size: 0.9em;
+  }
+
+  /* Estilos para el formulario de publicación */
+  #foroForm {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #foroForm textarea {
+    height: 150px;
+  }
+
+  /* Estilos de la sección de login y registro */
+  #registro h3, #login h3 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  /* Estilos de los botones de cierre de sesión */
+  #cerrarSesionBtn {
+    background-color: #FF6347;
+    margin-top: 20px;
+  }
+
+  #cerrarSesionBtn:hover {
+    background-color: #e5533f;
+  }
 
 </style>
 </head>
