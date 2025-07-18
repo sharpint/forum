@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foro - Preguntas y Respuestas</title>
+  <script type="module">
+    // Importar las funciones necesarias del SDK de Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, orderBy, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+    // Configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyBnW3Yh0k79PVdkzg1Y1FJH9XGtPfkXRPg",
+      authDomain: "deltarune-shitpost-page.firebaseapp.com",
+      projectId: "deltarune-shitpost-page",
+      storageBucket: "deltarune-shitpost-page.firebasestorage.app",
+      messagingSenderId: "996411698644",
+      appId: "1:996411698644:web:9d08505dac98273022ba41"
+    };
+
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Formularios y elementos
+    const registroDiv = document.getElementById('registro');
+    const loginDiv = document.getElementById('login');
+    const foroDiv = document.getElementById('foro');
+    const mensajerosDiv = document.getElementById('mensajes');
+    const emailRegistro = document.getElementById('emailRegistro');
+    const passwordRegistro = document.getElementById('passwordRegistro');
+    const emailLogin = document.getElementById('emailLogin');
+    const passwordLogin = document.getElementById('passwordLogin');
+
+    // Función para iniciar sesión
+    document.getElementById('iniciarSesionBtn').addEventListener('click', async () => {
+      const email = emailLogin.value;
+      const password = passwordLogin.value;
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        console.log("Usuario iniciado sesión:", userCredential.user);
+        loginDiv.style.display = 'none';
+        foroDiv.style.display = 'block';
+      } catch (error) {
+        console.error("Error al iniciar sesión:", error);
+      }
+    });
+
+    // Función para registrarse
+    document.getElementById('registrarseBtn').addEventListener('click', async () => {
+      const email = emailRegistro.value;
+      const password = passwordRegistro.value;
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        console.log("Usuario registrado:", userCredential.user);
+        registroDiv.style.display = 'none';
+        loginDiv.style.display = 'block';
+      } catch (error) {
+        console.error("Error al registrarse:", error);
+      }
+    });
+
+    // Función para cerrar sesión
+    document.getElementById('cerrarSesionBtn').addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        console.log("Sesión cerrada");
+        loginDiv.style.display = 'block';
+        foroDiv.style.display = 'none';
+      } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+      }
+    });
+
+    // Comprobar si el usuario está autenticado
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        foroDiv.style.display = 'block'; // Mostrar foro si el usuario está autenticado
+        loginDiv.style.display = 'none'; // Ocultar login
+        registroDiv.style.display = 'none'; // Ocultar registro
+      } else {
+        foroDiv.style.display = 'none'; // Ocultar foro si no está autenticado
+        loginDiv.style.display = 'block'; // Mostrar login
+        registroDiv.style.display = 'none'; // Asegurarse de ocultar el formulario de registro
+      }
+    });
+
+    // Manejar el formulario de mensaje en el foro
+    const foroForm = document.getElementById('foroForm');
+    foroForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const nombre = document.getElementById('nombre').value;
+      const mensaje = document.getElementById('mensaje').value;
+
+      // Verificar si el usuario está autenticado
+      const user = auth.currentUser;
+      if (!user) {
+        alert("Debes iniciar sesión para publicar un mensaje.");
+        return;
+      }
+
+      // Guardar el mensaje en Firestore
+      if (nombre && mensaje) {
+        try {
+          await addDoc(collection(db, "mensajes"), {
+            nombre: nombre,
+            mensaje: mensaje,
+            timestamp: serverTimestamp(),
+            uid: user.uid  // Guardar el ID del usuario para referencia futura
+          });
+          console.log("Mensaje guardado con éxito!");
+          document.getElementById('nombre').value = '';
+          document.getElementById('mensaje').value = '';
+        } catch (error) {
+          console.error("Error al guardar el mensaje: ", error);
+        }
+      } else {
+        alert("Por favor, completa ambos campos.");
+      }
+    });
+
+    // Escuchar los mensajes en tiempo real
+    const q = query(collection(db, "mensajes"), orderBy("timestamp", "asc"));
+    onSnapshot(q, (snapshot) => {
+      mensajerosDiv.innerHTML = '';
+      snapshot.forEach((doc) => {
+        const mensajeData = doc.data();
+        const mensajeElement = document.createElement('div');
+        mensajeElement.classList.add('mensaje');
+        mensajeElement.innerHTML = `
+          <strong>${mensajeData.nombre}</strong>: ${mensajeData.mensaje}<br>
+          <small>Publicado el ${new Date(mensajeData.timestamp.seconds * 1000).toLocaleString()}</small><br><br>
+        `;
+        mensajerosDiv.appendChild(mensajeElement);
+      });
+    });
+
+  </script>
+</head>
+<body>
+  <h1>Foro - Preguntas y Respuestas</h1>
+
+  <!-- Formulario de Registro -->
+  <div id="registro">
+    <h3>Regístrate</h3>
+    <input type="email" id="emailRegistro" placeholder="Correo electrónico" required><br><br>
+    <input type="password" id="passwordRegistro" placeholder="Contraseña" required><br><br>
+    <button id="registrarseBtn">Registrarse</button>
+  </div>
+
+  <!-- Formulario de Login -->
+  <div id="login" style="display: none;">
+    <h3>Inicia sesión</h3>
+    <input type="email" id="emailLogin" placeholder="Correo electrónico" required><br><br>
+    <input type="password" id="passwordLogin" placeholder="Contraseña" required><br><br>
+    <button id="iniciarSesionBtn">Iniciar sesión</button>
+  </div>
+
+  <!-- Formulario para publicar mensajes (visible solo si el usuario está logueado) -->
+  <div id="foro" style="display: none;">
+    <h3>Publicar un mensaje</h3>
+    <form id="foroForm">
+      <input type="text" id="nombre" placeholder="Tu nombre" required><br><br>
+      <textarea id="mensaje" placeholder="Escribe tu mensaje" required></textarea><br><br>
+      <button type="submit">Publicar</button>
+      <button type="button" id="cerrarSesionBtn">Cerrar sesión</button>
+    </form>
+    <div id="mensajes">
+      <!-- Los mensajes se cargarán aquí -->
+    </div>
+  </div>
+</body>
+</html>
