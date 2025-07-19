@@ -8,7 +8,7 @@
     // Importar las funciones necesarias del SDK de Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, onSnapshot, orderBy, query, serverTimestamp, where, getDocs } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, orderBy, query, serverTimestamp, where, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
     // Configuración de Firebase
     const firebaseConfig = {
@@ -42,6 +42,39 @@
       return querySnapshot.empty;  // Devuelve true si el nombre es único
     }
 
+    // Función para obtener el rol del usuario desde Firestore
+    async function obtenerRolUsuario(userId) {
+      const userDoc = await getDoc(doc(db, "users", userId));
+      if (userDoc.exists()) {
+        return userDoc.data().role; // Devuelve el rol del usuario
+      } else {
+        console.log("El usuario no tiene un rol asignado.");
+        return "user"; // Asignar un rol por defecto si no se encuentra
+      }
+    }
+
+    // Función para registrar un usuario
+    document.getElementById('registrarseBtn').addEventListener('click', async () => {
+      const email = emailRegistro.value;
+      const password = passwordRegistro.value;
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        console.log("Usuario registrado:", userCredential.user);
+
+        // Asignar un rol al usuario (por ejemplo, 'user' por defecto)
+        await setDoc(doc(db, "users", userCredential.user.uid), {
+          email: email,
+          role: "user", // O el rol que quieras asignar, como 'admin', 'moderator', etc.
+        });
+
+        registroDiv.style.display = 'none';
+        loginDiv.style.display = 'block';
+      } catch (error) {
+        console.error("Error al registrarse:", error);
+      }
+    });
+
     // Función para iniciar sesión
     document.getElementById('iniciarSesionBtn').addEventListener('click', async () => {
       const email = emailLogin.value;
@@ -53,20 +86,6 @@
         foroDiv.style.display = 'block';
       } catch (error) {
         console.error("Error al iniciar sesión:", error);
-      }
-    });
-
-    // Función para registrarse
-    document.getElementById('registrarseBtn').addEventListener('click', async () => {
-      const email = emailRegistro.value;
-      const password = passwordRegistro.value;
-      try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        console.log("Usuario registrado:", userCredential.user);
-        registroDiv.style.display = 'none';
-        loginDiv.style.display = 'block';
-      } catch (error) {
-        console.error("Error al registrarse:", error);
       }
     });
 
@@ -83,8 +102,14 @@
     });
 
     // Comprobar si el usuario está autenticado
-    onAuthStateChanged(auth, user => {
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Obtener el rol del usuario logueado
+        const role = await obtenerRolUsuario(user.uid);
+
+        // Mostrar el rol en la UI (puedes mostrarlo donde quieras)
+        document.getElementById('user-role').textContent = `Rol: ${role}`;
+
         foroDiv.style.display = 'block'; // Mostrar foro si el usuario está autenticado
         loginDiv.style.display = 'none'; // Ocultar login
         registroDiv.style.display = 'none'; // Ocultar registro
@@ -110,128 +135,145 @@
         return;
       }
 
-      // Verificar si el nombre ya existe en la base de datos
-      const esNombreUnico = await verificarNombreUnico(nombre);
-      if (!esNombreUnico) {
-        alert("El nombre ya está en uso, elige otro.");
-        return;
-      }
-
-      // Guardar el mensaje en Firestore si el nombre es único
-      if (nombre && mensaje) {
-        try {
-          await addDoc(collection(db, "mensajes"), {
-            nombre: nombre,
-            mensaje: mensaje,
-            timestamp: serverTimestamp(),
-            uid: user.uid  // Guardar el ID del usuario para referencia futura
-          });
-          console.log("Mensaje guardado con éxito!");
-          document.getElementById('nombre').value = '';
-          document.getElementById('mensaje').value = '';
-        } catch (error) {
-          console.error("Error al guardar el mensaje: ", error);
-        }
-      } else {
-        alert("Por favor, completa ambos campos.");
-      }
+      // Publicar el mensaje
+      await addDoc(collection(db, "mensajes"), {
+        userId: user.uid,
+        nombre: nombre,
+        mensaje: mensaje,
+        timestamp: serverTimestamp(),
+      });
     });
 
     // Escuchar los mensajes en tiempo real
     const q = query(collection(db, "mensajes"), orderBy("timestamp", "asc"));
-    onSnapshot(q, (snapshot) => {
+    onSnapshot(q, async (snapshot) => {
       mensajerosDiv.innerHTML = '';
-      snapshot.forEach((doc) => {
+      snapshot.forEach(async (doc) => {
         const mensajeData = doc.data();
+        const userId = mensajeData.userId; // Suponiendo que cada mensaje tiene un userId
+
+        // Obtener el rol del autor del mensaje
+        const rol = await obtenerRolUsuario(userId);
+
         const mensajeElement = document.createElement('div');
         mensajeElement.classList.add('mensaje');
         mensajeElement.innerHTML = `
-          <strong>${mensajeData.nombre}</strong>: ${mensajeData.mensaje}<br>
+          <div class="mensaje-header">
+            <strong>${mensajeData.nombre}</strong> 
+            <span class="role">(${rol})</span> <!-- Mostrar el rol aquí -->
+          </div>
+          <div class="mensaje-body">${mensajeData.mensaje}</div>
           <small>Publicado el ${new Date(mensajeData.timestamp.seconds * 1000).toLocaleString()}</small><br><br>
         `;
         mensajerosDiv.appendChild(mensajeElement);
       });
     });
-
   </script>
-<style>
-  /* Estilos generales */
-  body {
-    margin: 0;
-    background: #11121a;
-    color: #fff;
-    font-family: 'Ubuntu Mono', 'Ubuntu Light', arial, monospace;
-  }
-  h1 {
-    text-align: center;
-    font-size: 2.5em;
-    margin-top: 20px;
-    color: #ffffff;
-  }
+  <style>
+    /* Estilos generales */
+    body {
+      margin: 0;
+      background: #11121a;
+      color: #fff;
+      font-family: 'Ubuntu Mono', 'Ubuntu Light', arial, monospace;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2.5em;
+      margin-top: 20px;
+      color: #ffffff;
+    }
 
-  #foro, #registro, #login {
-    margin: 0 auto;
-    width: 80%;
-    max-width: 800px;
-    padding: 20px;
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  }
+    #foro, #registro, #login {
+      margin: 0 auto;
+      width: 80%;
+      max-width: 800px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
 
-  input[type="email"], input[type="password"], input[type="text"], textarea {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 1em;
-  }
+    input[type="email"], input[type="password"], input[type="text"], textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+    }
 
-  input[type="email"]:focus, input[type="password"]:focus, input[type="text"]:focus, textarea:focus {
-    border-color: #007BFF;
-    outline: none;
-  }
+    input[type="email"]:focus, input[type="password"]:focus, input[type="text"]:focus, textarea:focus {
+      border-color: #007BFF;
+      outline: none;
+    }
 
-  button {
-    width: 100%;
-    padding: 10px;
-    background-color: #007BFF;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    font-size: 1.2em;
-    cursor: pointer;
-  }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #007BFF;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 1.2em;
+      cursor: pointer;
+    }
 
-  button:hover {
-    background-color: #0056b3;
-  }
+    button:hover {
+      background-color: #0056b3;
+    }
 
-  .mensaje {
-    background-color: #f9f9f9;
-    padding: 15px;
-    margin-bottom: 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    color: #1C1C1C; /* Color del texto */
-    word-wrap: break-word; /* Para que el texto largo se corte y continúe en la siguiente línea */
-    overflow-wrap: break-word; /* Otra forma de asegurar que el texto largo no se desborde */
-    white-space: normal; /* Asegura que el texto se ajuste a múltiples líneas */
-  }
+    .mensaje {
+      background-color: #f9f9f9;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      color: #1C1C1C; /* Color del texto */
+      word-wrap: break-word; /* Para que el texto largo se corte y continúe en la siguiente línea */
+      overflow-wrap: break-word; /* Otra forma de asegurar que el texto largo no se desborde */
+      white-space: normal; /* Asegura que el texto se ajuste a múltiples líneas */
+    }
 
-  .mensaje strong {
-    color: #007BFF;
-    font-size: 1.1em;
-  }
+    .mensaje-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.1em;
+    }
 
-  .mensaje small {
-    display: block;
-    margin-top: 5px;
-    color: #1C1C1C;
-    font-size: 0.9em;
-  }
-</style>
+    .mensaje-body {
+      margin-top: 10px;
+      font-size: 1em;
+    }
+
+    .mensaje strong {
+      color: #007BFF;
+    }
+
+    .role {
+      font-weight: bold;
+      color: #007BFF; /* Color por defecto para los roles */
+    }
+
+    .admin {
+      color: red;
+    }
+
+    .moderator {
+      color: orange;
+    }
+
+    .user {
+      color: green;
+    }
+
+    .mensaje small {
+      display: block;
+      margin-top: 5px;
+      color: #1C1C1C;
+      font-size: 0.9em;
+    }
+  </style>
 </head>
 <body>
   <h1>Foro - Preguntas y Respuestas</h1>
@@ -261,6 +303,7 @@
       <button type="submit">Publicar</button>
       <button type="button" id="cerrarSesionBtn">Cerrar sesión</button>
     </form>
+    <div id="user-role"></div> <!-- Mostrar el rol del usuario logueado -->
     <div id="mensajes">
       <!-- Los mensajes se cargarán aquí -->
     </div>
