@@ -75,102 +75,105 @@
       }
     });
 
-    // Función para iniciar sesión
-    document.getElementById('iniciarSesionBtn').addEventListener('click', async () => {
-      const email = emailLogin.value;
-      const password = passwordLogin.value;
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log("Usuario iniciado sesión:", userCredential.user);
-        loginDiv.style.display = 'none';
-        foroDiv.style.display = 'block';
-      } catch (error) {
-        console.error("Error al iniciar sesión:", error);
-      }
-    });
+    // Esperar a que el DOM se cargue completamente antes de añadir el evento
+    document.addEventListener('DOMContentLoaded', function () {
+      // Función para iniciar sesión
+      document.getElementById('iniciarSesionBtn').addEventListener('click', async () => {
+        const email = emailLogin.value;
+        const password = passwordLogin.value;
+        try {
+          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          console.log("Usuario iniciado sesión:", userCredential.user);
+          loginDiv.style.display = 'none';
+          foroDiv.style.display = 'block';
+        } catch (error) {
+          console.error("Error al iniciar sesión:", error);
+        }
+      });
 
-    // Función para cerrar sesión
-    document.getElementById('cerrarSesionBtn').addEventListener('click', async () => {
-      try {
-        await signOut(auth);
-        console.log("Sesión cerrada");
-        loginDiv.style.display = 'block';
-        foroDiv.style.display = 'none';
-      } catch (error) {
-        console.error("Error al cerrar sesión:", error);
-      }
-    });
+      // Función para cerrar sesión
+      document.getElementById('cerrarSesionBtn').addEventListener('click', async () => {
+        try {
+          await signOut(auth);
+          console.log("Sesión cerrada");
+          loginDiv.style.display = 'block';
+          foroDiv.style.display = 'none';
+        } catch (error) {
+          console.error("Error al cerrar sesión:", error);
+        }
+      });
 
-    // Comprobar si el usuario está autenticado
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Obtener el rol del usuario logueado
-        const role = await obtenerRolUsuario(user.uid);
+      // Comprobar si el usuario está autenticado
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          // Obtener el rol del usuario logueado
+          const role = await obtenerRolUsuario(user.uid);
 
-        // Mostrar el rol en la UI (puedes mostrarlo donde quieras)
-        document.getElementById('user-role').textContent = `Rol: ${role}`;
+          // Mostrar el rol en la UI (puedes mostrarlo donde quieras)
+          document.getElementById('user-role').textContent = `Rol: ${role}`;
 
-        foroDiv.style.display = 'block'; // Mostrar foro si el usuario está autenticado
-        loginDiv.style.display = 'none'; // Ocultar login
-        registroDiv.style.display = 'none'; // Ocultar registro
-      } else {
-        foroDiv.style.display = 'none'; // Ocultar foro si no está autenticado
-        loginDiv.style.display = 'block'; // Mostrar login
-        registroDiv.style.display = 'none'; // Asegurarse de ocultar el formulario de registro
-      }
-    });
+          foroDiv.style.display = 'block'; // Mostrar foro si el usuario está autenticado
+          loginDiv.style.display = 'none'; // Ocultar login
+          registroDiv.style.display = 'none'; // Ocultar registro
+        } else {
+          foroDiv.style.display = 'none'; // Ocultar foro si no está autenticado
+          loginDiv.style.display = 'block'; // Mostrar login
+          registroDiv.style.display = 'none'; // Asegurarse de ocultar el formulario de registro
+        }
+      });
 
-    // Manejar el formulario de mensaje en el foro
-    const foroForm = document.getElementById('foroForm');
-    foroForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
+      // Manejar el formulario de mensaje en el foro
+      const foroForm = document.getElementById('foroForm');
+      foroForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
 
-      const nombre = document.getElementById('nombre').value;
-      const mensaje = document.getElementById('mensaje').value;
+        const nombre = document.getElementById('nombre').value;
+        const mensaje = document.getElementById('mensaje').value;
 
-      // Verificar si el usuario está autenticado
-      const user = auth.currentUser;
-      if (!user) {
-        alert("Debes iniciar sesión para publicar un mensaje.");
-        return;
-      }
+        // Verificar si el usuario está autenticado
+        const user = auth.currentUser;
+        if (!user) {
+          alert("Debes iniciar sesión para publicar un mensaje.");
+          return;
+        }
 
-      // Publicar el mensaje
-      await addDoc(collection(db, "mensajes"), {
-        userId: user.uid,
-        nombre: nombre,
-        mensaje: mensaje,
-        timestamp: serverTimestamp(),
+        // Publicar el mensaje
+        await addDoc(collection(db, "mensajes"), {
+          userId: user.uid,
+          nombre: nombre,
+          mensaje: mensaje,
+          timestamp: serverTimestamp(),
+        });
+      });
+
+      // Escuchar los mensajes en tiempo real
+      const q = query(collection(db, "mensajes"), orderBy("timestamp", "asc"));
+      onSnapshot(q, async (snapshot) => {
+        mensajerosDiv.innerHTML = '';  // Limpiar los mensajes previos
+        snapshot.forEach(async (doc) => {
+          const mensajeData = doc.data();
+          const userId = mensajeData.userId;  // Obtener el userId del mensaje
+
+          // Obtener el rol del autor del mensaje
+          const rol = await obtenerRolUsuario(userId);
+
+          const mensajeElement = document.createElement('div');
+          mensajeElement.classList.add('mensaje');
+
+          mensajeElement.innerHTML = `
+            <div class="mensaje-header">
+              <div>
+                <strong>${mensajeData.nombre}</strong>
+                <span class="role">(${rol})</span>
+              </div>
+              <small>Publicado el ${new Date(mensajeData.timestamp.seconds * 1000).toLocaleString()}</small>
+            </div>
+            <div class="mensaje-body">${mensajeData.mensaje}</div>
+          `;
+          mensajerosDiv.appendChild(mensajeElement);
+        });
       });
     });
-
-// Escuchar los mensajes en tiempo real
-const q = query(collection(db, "mensajes"), orderBy("timestamp", "asc"));
-onSnapshot(q, async (snapshot) => {
-  mensajerosDiv.innerHTML = '';  // Limpiar los mensajes previos
-  snapshot.forEach(async (doc) => {
-    const mensajeData = doc.data();
-    const userId = mensajeData.userId;  // Obtener el userId del mensaje
-
-    // Obtener el rol del autor del mensaje
-    const rol = await obtenerRolUsuario(userId);
-
-    const mensajeElement = document.createElement('div');
-    mensajeElement.classList.add('mensaje');
-
-  mensajeElement.innerHTML = `
-    <div class="mensaje-header">
-      <div>
-        <strong>${mensajeData.nombre}</strong>
-        <span class="role">(${rol})</span>
-      </div>
-      <small>Publicado el ${new Date(mensajeData.timestamp.seconds * 1000).toLocaleString()}</small>
-    </div>
-    <div class="mensaje-body">${mensajeData.mensaje}</div>
-  `;
-   mensajerosDiv.appendChild(mensajeElement);
- }};
-}};
   </script>
   <style>
     /* Estilos generales */
@@ -225,73 +228,39 @@ onSnapshot(q, async (snapshot) => {
     button:hover {
       background-color: #0056b3;
     }
+
     .mensaje {
-     background-color: #f9f9f9;
-     padding: 15px;
-     margin-bottom: 20px;
-     border-radius: 5px;
-     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-     color: #1C1C1C; /* Color del texto */
-     word-wrap: break-word; /* Para que el texto largo se corte y continúe en la siguiente línea */
-     overflow-wrap: break-word; /* Otra forma de asegurar que el texto largo no se desborde */
-     white-space: normal; /* Asegura que el texto se ajuste a múltiples líneas */
+      background-color: #f9f9f9;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      color: #1C1C1C; /* Color del texto */
+      word-wrap: break-word; /* Para que el texto largo se corte y continúe en la siguiente línea */
+      overflow-wrap: break-word; /* Otra forma de asegurar que el texto largo no se desborde */
+      white-space: normal; /* Asegura que el texto se ajuste a múltiples líneas */
     }
 
-/* Estilos para la cabecera del mensaje */
-.mensaje-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.mensaje-header strong {
-  color: #007BFF;
-  font-size: 1.1em;
-}
-
-.role {
-  font-weight: bold;
-  color: #007BFF; /* Color por defecto para los roles */
-  font-size: 0.9em;
-}
-
-.mensaje-body {
-  margin-top: 10px;
-  font-size: 1.1em;
-}
-
-/* Estilo para los mensajes pequeños */
-.mensaje small {
-  display: block;
-  margin-top: 5px;
-  color: #1C1C1C;
-  font-size: 0.9em;
-}
-
-    .mensaje-body {
-      margin-top: 10px;
-      font-size: 1em;
+    .mensaje-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .mensaje strong {
+    .mensaje-header strong {
       color: #007BFF;
+      font-size: 1.1em;
     }
 
     .role {
       font-weight: bold;
       color: #007BFF; /* Color por defecto para los roles */
+      font-size: 0.9em;
     }
 
-    .admin {
-      color: red;
-    }
-
-    .moderator {
-      color: orange;
-    }
-
-    .user {
-      color: green;
+    .mensaje-body {
+      margin-top: 10px;
+      font-size: 1.1em;
     }
 
     .mensaje small {
@@ -331,9 +300,9 @@ onSnapshot(q, async (snapshot) => {
       <button type="button" id="cerrarSesionBtn">Cerrar sesión</button>
     </form>
   </div>
-    <div id="user-role"></div> <!-- Mostrar el rol del usuario logueado -->
-    <div id="mensajes">
-      <!-- Los mensajes se cargarán aquí -->
-    </div>
-  </body>
+  <div id="user-role"></div> <!-- Mostrar el rol del usuario logueado -->
+  <div id="mensajes">
+    <!-- Los mensajes se cargarán aquí -->
+  </div>
+</body>
 </html>
