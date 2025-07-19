@@ -144,31 +144,34 @@
       });
     });
 
-    // Escuchar los mensajes en tiempo real
-    const q = query(collection(db, "mensajes"), orderBy("timestamp", "asc"));
-    onSnapshot(q, async (snapshot) => {
-      mensajerosDiv.innerHTML = '';
-      snapshot.forEach(async (doc) => {
-        const mensajeData = doc.data();
-        const userId = mensajeData.userId; // Suponiendo que cada mensaje tiene un userId
+// Escuchar los mensajes en tiempo real
+const q = query(collection(db, "mensajes"), orderBy("timestamp", "asc"));
+onSnapshot(q, async (snapshot) => {
+  mensajerosDiv.innerHTML = '';  // Limpiar los mensajes previos
+  snapshot.forEach(async (doc) => {
+    const mensajeData = doc.data();
+    const userId = mensajeData.userId;  // Obtener el userId del mensaje
 
-        // Obtener el rol del autor del mensaje
-        const rol = await obtenerRolUsuario(userId);
+    // Obtener el rol del autor del mensaje
+    const rol = await obtenerRolUsuario(userId);
 
-        const mensajeElement = document.createElement('div');
-        mensajeElement.classList.add('mensaje');
-        mensajeElement.innerHTML = `
-          <div class="mensaje-header">
-            <strong>${mensajeData.nombre}</strong> 
-            <span class="role">(${rol})</span> <!-- Mostrar el rol aquí -->
-          </div>
-          <div class="mensaje-body">${mensajeData.mensaje}</div>
-          <small>Publicado el ${new Date(mensajeData.timestamp.seconds * 1000).toLocaleString()}</small><br><br>
-        `;
-        mensajerosDiv.appendChild(mensajeElement);
-      });
-    });
-  </script>
+    const mensajeElement = document.createElement('div');
+    mensajeElement.classList.add('mensaje');
+
+  mensajeElement.innerHTML = `
+    <div class="mensaje-header">
+      <div>
+        <strong>${mensajeData.nombre}</strong>
+        <span class="role">(${rol})</span>
+      </div>
+      <small>Publicado el ${new Date(mensajeData.timestamp.seconds * 1000).toLocaleString()}</small>
+    </div>
+    <div class="mensaje-body">${mensajeData.mensaje}</div>
+  `;
+   mensajerosDiv.appendChild(mensajeElement);
+ }};
+}};
+
   <style>
     /* Estilos generales */
     body {
@@ -222,24 +225,48 @@
     button:hover {
       background-color: #0056b3;
     }
-
     .mensaje {
-      background-color: #f9f9f9;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 5px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-      color: #1C1C1C; /* Color del texto */
-      word-wrap: break-word; /* Para que el texto largo se corte y continúe en la siguiente línea */
-      overflow-wrap: break-word; /* Otra forma de asegurar que el texto largo no se desborde */
-      white-space: normal; /* Asegura que el texto se ajuste a múltiples líneas */
+     background-color: #f9f9f9;
+     padding: 15px;
+     margin-bottom: 20px;
+     border-radius: 5px;
+     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+     color: #1C1C1C; /* Color del texto */
+     word-wrap: break-word; /* Para que el texto largo se corte y continúe en la siguiente línea */
+     overflow-wrap: break-word; /* Otra forma de asegurar que el texto largo no se desborde */
+     white-space: normal; /* Asegura que el texto se ajuste a múltiples líneas */
     }
 
-    .mensaje-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 1.1em;
-    }
+/* Estilos para la cabecera del mensaje */
+.mensaje-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mensaje-header strong {
+  color: #007BFF;
+  font-size: 1.1em;
+}
+
+.role {
+  font-weight: bold;
+  color: #007BFF; /* Color por defecto para los roles */
+  font-size: 0.9em;
+}
+
+.mensaje-body {
+  margin-top: 10px;
+  font-size: 1.1em;
+}
+
+/* Estilo para los mensajes pequeños */
+.mensaje small {
+  display: block;
+  margin-top: 5px;
+  color: #1C1C1C;
+  font-size: 0.9em;
+}
 
     .mensaje-body {
       margin-top: 10px;
